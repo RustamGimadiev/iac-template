@@ -1,0 +1,91 @@
+name: Terraform modules
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - modules/**
+    
+jobs:
+  get-changed-modules:
+    name: Get modified modules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v14.1
+        with:
+          files: modules/**
+      - id: changes
+        name: TFlint
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
+            do echo $file
+          done | xargs -I {} | cut -d '/' -f2 | sort | uniq | jq -c --slurp --raw-input 'split("\n")[:-1]' > modules.json
+          echo "::set-output name=modules::$(cat modules.json)"
+    outputs:
+      modules: ${{ steps.changes.outpus.modules }}
+
+  terraform:
+    name: "Terraform"
+    runs-on: ubuntu-latest
+    needs:
+      - get-changed-modules
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.get-changed-modules.outputs.modules) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Choose module
+        run: cd modules/${{ module }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Format
+        id: fmt
+        run: terraform fmt -check
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+      
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: TFLint
+        id: tflint
+        run: tflint .
+        continue-on-error: true
+
+      - uses: actions/github-script@0.9.0
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            #### TFlint 📖\`${{ steps.tflint.outcome }}\`
+            <details><summary>Show Plan</summary>
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+            </details>
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Status
+        if: steps.tflint.outcome == 'failure'
+        run: exit 1
