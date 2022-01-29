@@ -6,7 +6,7 @@ resource "aws_db_instance" "db" {
   name                 = var.db_name
   username             = "admin"
   password             = random_password.db.result
-  parameter_group_name = "default.mysql5.7"
+  parameter_group_name = var.parameter_group_name 
   skip_final_snapshot  = true
 }
 
