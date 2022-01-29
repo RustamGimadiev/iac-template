@@ -25,13 +25,14 @@ jobs:
         run: |
           export modules=`echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | cut -d '/' -f2 | sort | uniq | jq -c -s --raw-input 'split("\n")[:-1] | {modules: .}'`
           echo $modules
-          echo "::set-output name=modules::$(echo "${modules}")"
+          echo "::set-output name=modules::'$(echo "${modules}")'"
     outputs:
       modules: ${{ steps.filter.outpus.modules }}
 
   terraform:
     name: "Terraform"
     runs-on: ubuntu-latest
+    if: "${{ needs.get-changed-modules.outputs.modules != '{\"modules\": []}' }}"
     needs:
       - get-changed-modules
     strategy:
