@@ -64,7 +64,7 @@ jobs:
         id: tflint
         run: |
           tflint -c ../.tflint.hcl --init
-          tflint -c ../.tflint.hcl .
+          echo '::set-output name=report::$(tflint -c ../.tflint.hcl .)'
         continue-on-error: true
 
       - uses: actions/github-script@0.9.0
@@ -80,7 +80,9 @@ jobs:
             #### TFlint 📖\`${{ steps.tflint.outcome }}\`
             <details><summary>Show details</summary>
             
-            \`\`\`${{ steps.tflint.outputs.stdout }}\`\`\`
+            \`\`\`
+            ${{ steps.tflint.outputs.report }}
+            \`\`\`
             
             </details>`;
             github.issues.createComment({
