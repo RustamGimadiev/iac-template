@@ -66,18 +66,13 @@ jobs:
         run: |
           tflint -c ../.tflint.hcl --init
           tflint -c ../.tflint.hcl . > report.txt || status=$?
-          cat report.txt
           REPORT=$(cat report.txt)
           REPORT="${REPORT//'%'/'%25'}"
           REPORT="${REPORT//$'\n'/'%0A'}"
           REPORT="${REPORT//$'\r'/'%0D'}"
-          echo $REPORT
           echo "::set-output name=report::$REPORT"
           exit $status
         continue-on-error: true
-        
-      - name: debug
-        run: echo "${{ steps.tflint.outputs.report }}"
 
       - uses: actions/github-script@0.9.0
         name: Report message
