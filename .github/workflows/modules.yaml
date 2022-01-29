@@ -65,8 +65,7 @@ jobs:
         shell: bash
         run: |
           tflint -c ../.tflint.hcl --init
-          tflint -c ../.tflint.hcl . > report.txt
-          export status=$?
+          tflint -c ../.tflint.hcl . > report.txt || status=$?
           cat report.txt
           REPORT=$(cat report.txt)
           REPORT="${REPORT//'%'/'%25'}"
