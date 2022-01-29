@@ -20,15 +20,16 @@ jobs:
         uses: tj-actions/changed-files@v14.1
         with:
           files: modules/**
-      - id: changes
-        name: TFlint
+      - id: filter
+        name: Filter
         run: |
           for file in ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
             do echo $file
           done | xargs -I {} | cut -d '/' -f2 | sort | uniq | jq -c --slurp --raw-input 'split("\n")[:-1] | {modules: .}' > modules.json
+          cat modules.json
           echo "::set-output name=modules::$(cat modules.json)"
     outputs:
-      modules: ${{ steps.changes.outpus.modules }}
+      modules: ${{ steps.filter.outpus.modules }}
 
   terraform:
     name: "Terraform"
