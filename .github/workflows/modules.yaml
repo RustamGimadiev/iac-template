@@ -57,12 +57,16 @@ jobs:
         id: validate
         run: terraform validate -no-color
 
+      - uses: terraform-linters/setup-tflint@v1
+        name: Setup TFLint
+          
       - name: TFLint
         id: tflint
         run: tflint .
         continue-on-error: true
 
       - uses: actions/github-script@0.9.0
+        name: Report message
         if: github.event_name == 'pull_request'
         env:
           REPORT: "TFlint:\n${{ steps.tflint.outputs.stdout }}"
