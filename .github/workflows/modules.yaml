@@ -28,21 +28,6 @@ jobs:
           export modules=`echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | cut -d '/' -f2 | sort | uniq | jq -c -s --raw-input 'split("\n")[:-1] | {modules: .}'`
           echo "::set-output name=matrix::$(echo "${modules}")"
 
-  check-matrix:
-    runs-on: ubuntu-latest
-    needs: get-changed-modules
-    steps:
-      - name: Install json2yaml
-        run: |
-          sudo npm install -g json2yaml
-
-      - name: Check matrix definition
-        run: |
-          matrix='${{ needs.get-changed-modules.outputs.matrix }}'
-          echo $matrix
-          echo $matrix | jq .
-          echo $matrix | json2yaml
-
   terraform:
     name: "Terraform"
     runs-on: ubuntu-latest
