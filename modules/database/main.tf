@@ -6,10 +6,13 @@ resource "aws_db_instance" "db" {
   name                 = var.db_name
   username             = "admin"
   password             = random_password.db.result
-  parameter_group_name = var.parameter_group_name
+  parameter_group_name = aws_db_parameter_group.db.name
   skip_final_snapshot  = true
 }
 
+resource "aws_db_parameter_group" "db" {
+  name_prefix = "${var.db_name}-"
+}
 resource "random_password" "db" {
   length = 16
 }
