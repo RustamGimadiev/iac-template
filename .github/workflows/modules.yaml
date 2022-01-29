@@ -25,7 +25,7 @@ jobs:
       - id: filter
         name: Filter
         run: |
-          export modules=`echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | cut -d '/' -f2 | sort | uniq | jq -c -s --raw-input 'split("\n")[:-1] | {modules: .}'`
+          export modules=`echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | grep '.tf$' | cut -d '/' -f2 | sort | uniq | jq -c -s --raw-input 'split("\n")[:-1] | {modules: .}'`
           echo "::set-output name=matrix::$(echo "${modules}")"
 
   terraform:
@@ -35,12 +35,12 @@ jobs:
     needs: get-changed-modules
     strategy:
       matrix: ${{ fromJson(needs.get-changed-modules.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ./modules/${{ matrix.modules }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
-      - name: Choose module
-        run: cd modules/${{ matrix.modules }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
