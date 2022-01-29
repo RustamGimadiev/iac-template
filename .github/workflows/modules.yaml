@@ -66,8 +66,11 @@ jobs:
           tflint -c ../.tflint.hcl --init
           tflint -c ../.tflint.hcl . > report.txt
           export status=$?
-          cat report.txt
-          echo "::set-output name=report::$(cat report.txt)"
+          REPORT=$(cat report.txt)
+          REPORT="${REPORT//'%'/'%25'}"
+          REPORT="${REPORT//$'\n'/'%0A'}"
+          REPORT="${REPORT//$'\r'/'%0D'}"
+          echo "::set-output name=report::$REPORT"
           exit $status
         continue-on-error: true
 
