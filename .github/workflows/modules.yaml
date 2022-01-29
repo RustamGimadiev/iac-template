@@ -23,10 +23,9 @@ jobs:
       - id: filter
         name: Filter
         run: |
-          #! /bin/bash -x
-          echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | cut -d '/' -f2 | sort | uniq | jq -c -s --raw-input 'split("\n")[:-1] | {modules: .}' > modules.json
-          cat modules.json
-          echo "::set-output name=modules::$(cat modules.json)"
+          export modules=`echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | cut -d '/' -f2 | sort | uniq | jq -c -s --raw-input 'split("\n")[:-1] | {modules: .}'`
+          echo $modules
+          echo "::set-output name=modules::$(echo "${modules}")"
     outputs:
       modules: ${{ steps.filter.outpus.modules }}
 
@@ -71,9 +70,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            const output = `### Report for ${{ matrix.modules }}:
+            #### Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Validation 🤖\`${{ steps.validate.outcome }}\`
             #### TFlint 📖\`${{ steps.tflint.outcome }}\`
             <details><summary>Show Plan</summary>
             \`\`\`\n
