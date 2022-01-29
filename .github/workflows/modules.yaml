@@ -62,6 +62,7 @@ jobs:
           
       - name: TFLint
         id: tflint
+        shell: bash
         run: |
           tflint -c ../.tflint.hcl --init
           tflint -c ../.tflint.hcl . > report.txt
