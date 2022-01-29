@@ -66,6 +66,7 @@ jobs:
           tflint -c ../.tflint.hcl --init
           tflint -c ../.tflint.hcl . > report.txt
           export status=$?
+          cat report.txt
           echo "::set-output name=report::$(cat report.txt)"
           exit $status
         continue-on-error: true
