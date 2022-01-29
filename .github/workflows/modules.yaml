@@ -70,8 +70,6 @@ jobs:
       - uses: actions/github-script@0.9.0
         name: Report message
         if: github.event_name == 'pull_request'
-        env:
-          REPORT: "TFlint:\n${{ steps.tflint.outputs.stdout }}\n${{ steps.tflint.outputs.stderr }}"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -82,7 +80,7 @@ jobs:
             #### TFlint 📖\`${{ steps.tflint.outcome }}\`
             <details><summary>Show details</summary>
             
-            \`\`\`${process.env.REPORT}\`\`\`
+            \`\`\`${{ steps.tflint.outputs.stdout }}\`\`\`
             
             </details>`;
             github.issues.createComment({
