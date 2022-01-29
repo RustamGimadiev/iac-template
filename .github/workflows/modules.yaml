@@ -62,14 +62,16 @@ jobs:
           
       - name: TFLint
         id: tflint
-        run: tflint .
+        run: |
+          tflint -c ../.tflint.hcl --init
+          tflint -c ../.tflint.hcl .
         continue-on-error: true
 
       - uses: actions/github-script@0.9.0
         name: Report message
         if: github.event_name == 'pull_request'
         env:
-          REPORT: "TFlint:\n${{ steps.tflint.outputs.stdout }}"
+          REPORT: "TFlint:\n${{ steps.tflint.outputs.stdout }}\n${{ steps.tflint.outputs.stderr }}"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -79,11 +81,10 @@ jobs:
             #### Validation 🤖\`${{ steps.validate.outcome }}\`
             #### TFlint 📖\`${{ steps.tflint.outcome }}\`
             <details><summary>Show details</summary>
-            \`\`\`\n
-            ${process.env.REPORT}
-            \`\`\`
-            </details>
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            
+            \`\`\`${process.env.REPORT}\`\`\`
+            
+            </details>`;
             github.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
