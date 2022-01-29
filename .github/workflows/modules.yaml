@@ -80,7 +80,7 @@ jobs:
       - uses: actions/github-script@0.9.0
         if: github.event_name == 'pull_request'
         env:
-          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+          REPORT: "TFlint:\n${{ steps.tflint.outputs.stdout }}"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -89,9 +89,9 @@ jobs:
             #### Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Validation 🤖\`${{ steps.validate.outcome }}\`
             #### TFlint 📖\`${{ steps.tflint.outcome }}\`
-            <details><summary>Show Plan</summary>
+            <details><summary>Show details</summary>
             \`\`\`\n
-            ${process.env.PLAN}
+            ${process.env.REPORT}
             \`\`\`
             </details>
             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
