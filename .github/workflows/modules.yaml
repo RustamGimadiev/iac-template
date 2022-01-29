@@ -23,9 +23,8 @@ jobs:
       - id: filter
         name: Filter
         run: |
-          for file in ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
-            do echo $file
-          done | xargs -I {} | cut -d '/' -f2 | sort | uniq | jq -c --slurp --raw-input 'split("\n")[:-1] | {modules: .}' > modules.json
+          #! /bin/bash -x
+          echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | cut -d '/' -f2 | sort | uniq | jq -c -s --raw-input 'split("\n")[:-1] | {modules: .}' > modules.json
           cat modules.json
           echo "::set-output name=modules::$(cat modules.json)"
     outputs:
