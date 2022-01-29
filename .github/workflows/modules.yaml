@@ -64,7 +64,10 @@ jobs:
         id: tflint
         run: |
           tflint -c ../.tflint.hcl --init
-          echo '::set-output name=report::$(tflint -c ../.tflint.hcl .)'
+          tflint -c ../.tflint.hcl . > report.txt
+          export status=$?
+          echo "::set-output name=report::$(cat report.txt)"
+          exit $status
         continue-on-error: true
 
       - uses: actions/github-script@0.9.0
