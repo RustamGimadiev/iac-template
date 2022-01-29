@@ -12,6 +12,7 @@ resource "aws_db_instance" "db" {
 
 resource "aws_db_parameter_group" "db" {
   name_prefix = "${var.db_name}-"
+  family      = "mysql5.7"
 }
 resource "random_password" "db" {
   length = 16
