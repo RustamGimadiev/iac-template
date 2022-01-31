@@ -56,6 +56,8 @@ jobs:
 
       - name: Setup Terragrunt
         uses: autero1/action-terragrunt@v1.1.1
+        with:
+          terragrunt_version: 0.36.0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
