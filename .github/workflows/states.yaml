@@ -32,7 +32,7 @@ jobs:
           export items="[]"
           for dir in `echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | grep '(*.hcl$\|.yaml$\|.yml$)' | xargs -I {} dirname {} | sort | uniq`
           do
-            if [[ -f $dir/terragrunt.hcl ]]
+            if [[ -f $dir/terragrunt.hcl ]] && [[ "$dir" != "states" ]]
               then
                 items=$(echo $items | jq -c --arg obj $dir '. += [$obj]')
             fi
