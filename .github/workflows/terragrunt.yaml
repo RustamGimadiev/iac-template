@@ -33,7 +33,8 @@ jobs:
           for dir in `echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | ggrep '(*.hcl$\|.yaml$\|.yml$)' | xargs -I {} dirname {} | sort | uniq`
           do
             if [[ -f $dir/terragrdunt.hcl ]]
-              items=$(echo $items | jq -c --arg obj $dir '. += [$obj]')
+              then
+                items=$(echo $items | jq -c --arg obj $dir '. += [$obj]')
             fi
           done
           states=$(echo {} | jq -c -s --argjson obj $items '{states: $obj}')
