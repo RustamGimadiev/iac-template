@@ -32,7 +32,7 @@ jobs:
           export items="[]"
           for dir in `echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | grep '(*.hcl$\|.yaml$\|.yml$)' | xargs -I {} dirname {} | sort | uniq`
           do
-            if [[ -f $dir/terragrdunt.hcl ]]
+            if [[ -f $dir/terragrunt.hcl ]]
               then
                 items=$(echo $items | jq -c --arg obj $dir '. += [$obj]')
             fi
@@ -111,5 +111,5 @@ jobs:
             })
 
       - name: Status
-        if: steps.tg_plan.outcome == 'failure'
+        if: ${{ github.event_name == 'pull_request' && steps.tg_plan.outcome == 'failure' }}
         run: exit 1
