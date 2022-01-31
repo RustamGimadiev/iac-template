@@ -1,0 +1,122 @@
+name: Terragrunt states
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - states/**
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - states/**
+
+jobs:
+  get-changed-states:
+    name: Get modified states
+    outputs:
+      matrix: ${{ steps.filter.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v14.1
+        with:
+          files: states/**
+
+      - id: filter
+        name: Filter
+        run: |
+          export items="[]"
+          for dir in `echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }} | tr ' ' '\n' | grep '(*.hcl$\|.yaml$\|.yml$)' | xargs -I {} dirname {} | sort | uniq`
+          do
+            if [[ -f $dir/terragrunt.hcl ]] && [[ "$dir" != "states" ]]
+              then
+                items=$(echo $items | jq -c --arg obj $dir '. += [$obj]')
+            fi
+          done
+          states=$(echo {} | jq -c -s --argjson obj $items '{states: $obj}')
+          echo "::set-output name=matrix::$(echo "${states}")"
+
+  terragrunt:
+    name: "Terragrunt"
+    runs-on: ubuntu-latest
+    if: "${{ needs.get-changed-states.outputs.states != '{\"states\": []}' }}"
+    needs: get-changed-states
+    strategy:
+      matrix: ${{ fromJson(needs.get-changed-states.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.states }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Terragrunt
+        uses: autero1/action-terragrunt@v1.1.1
+        with:
+          terragrunt_version: 0.36.0
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terragrunt Init
+        id: init
+        run: terragrunt init
+
+      - name: Terragrunt fmt
+        id: terragrunt_fmt
+        run: terragrunt fmt -check
+        continue-on-error: true
+
+      - name: Terragrunt Apply
+        id: tg_apply
+        if: github.event_name == 'push'
+        run: terragrunt apply -auto-approve -input=false --terragrunt-source-update
+
+      - name: Terragrunt PLan
+        id: tg_plan
+        if: github.event_name == 'pull_request'
+        run: |
+          terragrunt plan -no-color -input=false --terragrunt-source-update > report.txt || status=$?
+          REPORT=$(cat report.txt)
+          REPORT="${REPORT//'%'/'%25'}"
+          REPORT="${REPORT//$'\n'/'%0A'}"
+          REPORT="${REPORT//$'\r'/'%0D'}"
+          echo "::set-output name=report::$REPORT"
+          exit $status
+        continue-on-error: true
+
+      - uses: actions/github-script@0.9.0
+        name: Report message
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `### Report for ${{ matrix.states }}:
+            #### Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### TFlint 📖\`${{ steps.tg_plan.outcome }}\`
+            <details><summary>Show plan details</summary>
+
+            \`\`\`
+            ${{ steps.tg_plan.outputs.report }}
+            \`\`\`
+
+            </details>`;
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Status
+        if: ${{ github.event_name == 'pull_request' && steps.tg_plan.outcome == 'failure' }}
+        run: exit 1
