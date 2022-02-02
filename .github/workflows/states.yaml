@@ -50,6 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     if: "${{ needs.get-changed-states.outputs.states != '{\"states\": []}' }}"
     needs: get-changed-states
+    env:
+      tg_dir_prefix: ".terragrunt-cache"
     strategy:
       matrix: ${{ fromJson(needs.get-changed-states.outputs.matrix) }}
     defaults:
@@ -81,7 +83,37 @@ jobs:
         if: github.event_name == 'push'
         run: terragrunt apply -auto-approve -input=false --terragrunt-source-update
 
-      - name: Terragrunt PLan
+      - name: Get generated local files
+        id: generated_files
+        if: steps.tg_apply.outcome == 'success'
+        env:
+          tg_dir_prefix: ${{ env.tg_dir_prefix }}
+        run: |
+          cd $(dirname $(find ${{ env.tg_dir_prefix }} -name terragrunt.hcl))
+          terraform show -json | jq -c '.. | .resources?' | grep -v '^null$' > resources.json
+          generated_files=$(while read -r line; do echo "$line" | jq -r '.[] | select(.type=="local_file") | .values.filename'; done < resources.json)
+          echo "::set-output name=generated_files::$generated_files"
+
+      - name: Add local files back to repository
+        if: steps.generated_files.outputs.generated_files != ''
+        run: |
+          cd $(dirname $(find ${{ env.tg_dir_prefix }} -name terragrunt.hcl))
+          prefix=$(pwd | grep -oP 'states/\K([^.]*)')
+          for file in ${{ steps.generated_files.outputs.generated_files }}
+            do
+              mkdir -p ${{ github.workspace }}/generated/$prefix/$(dirname $file)
+              cp -r $file ${{ github.workspace }}/generated/$prefix/$(dirname $file)/
+          done
+
+      - name: Commit local files back to repository
+        if: steps.generated_files.outputs.generated_files != ''
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Applying generated files back to repository
+          file_pattern: "generated/**"
+          push_options: --force
+
+      - name: Terragrunt Plan
         id: tg_plan
         if: github.event_name == 'pull_request'
         run: |
