@@ -203,13 +203,8 @@ jobs:
             ```
             ${{ steps.tg_plan.outputs.report }}
             ```
-<<<<<<< HEAD
-            
-            </details>
-=======
-            </details>
 
->>>>>>> origin/main
+            </details>
             ${{ steps.cost_comment.outputs.report }}
           edit-mode: replace
 
