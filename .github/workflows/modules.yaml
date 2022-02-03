@@ -96,7 +96,6 @@ jobs:
             ```
 
             </details>
-            ${{ steps.cost_comment.outputs.report }}
           edit-mode: replace
 
       - name: Status
