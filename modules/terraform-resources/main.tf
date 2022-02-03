@@ -13,4 +13,14 @@ resource "aws_dynamodb_table" "locks" {
 resource "aws_s3_bucket" "states" {
   bucket = "${var.alias}-terragrunt-states-${var.aws_region}"
   acl    = "private"
+
+  server_side_encryption_configuration {
+    rule {
+      bucket_key_enabled = false
+
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "aws:kms"
+      }
+    }
+  }
 }
