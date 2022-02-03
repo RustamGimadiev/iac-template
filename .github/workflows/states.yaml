@@ -99,6 +99,9 @@ jobs:
 
       - name: Terragrunt fmt
         id: terragrunt_fmt
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terragrunt fmt -check
         continue-on-error: true
 
@@ -141,6 +144,9 @@ jobs:
 
       - name: Terragrunt Plan
         id: tg_plan
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         if: ${{ github.event_name == 'pull_request' || github.event.inputs.terragrunt_action == 'plan' }}
         run: |
           terragrunt plan -no-color -input=false --terragrunt-source-update > report.txt || status=$?
@@ -194,6 +200,7 @@ jobs:
             ```
             ${{ steps.tg_plan.outputs.report }}
             ```
+            
             </details>
             ${{ steps.cost_comment.outputs.report }}
           edit-mode: replace
