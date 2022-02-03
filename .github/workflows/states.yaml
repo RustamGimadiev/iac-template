@@ -165,6 +165,9 @@ jobs:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
 
       - name: Generate Infracost comment
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         if: ${{ github.event_name == 'pull_request' }}
         id: cost_comment
         run: |
@@ -200,8 +203,13 @@ jobs:
             ```
             ${{ steps.tg_plan.outputs.report }}
             ```
+<<<<<<< HEAD
             
             </details>
+=======
+            </details>
+
+>>>>>>> origin/main
             ${{ steps.cost_comment.outputs.report }}
           edit-mode: replace
 
