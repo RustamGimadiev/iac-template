@@ -92,6 +92,9 @@ jobs:
 
       - name: Terragrunt Init
         id: init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terragrunt init
 
       - name: Terragrunt fmt
@@ -101,6 +104,9 @@ jobs:
 
       - name: Terragrunt Apply
         id: tg_apply
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         if: ${{ github.event_name == 'push' || github.event.inputs.terragrunt_action == 'apply' }}
         run: terragrunt apply -auto-approve -input=false --terragrunt-source-update
 
@@ -171,7 +177,7 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-author: 'github-actions[bot]'
-          body-includes: "Report for ${{ matrix.states }}:"
+          body-includes: "Report for state ${{ matrix.states }}:"
 
       - name: Create or update comment
         uses: peter-evans/create-or-update-comment@v1
@@ -180,10 +186,11 @@ jobs:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ### Report for ${{ matrix.states }}:
+            ### Report for state ${{ matrix.states }}:
             #### Format and Style 🖌 `${{ steps.fmt.outcome }}`
             #### Plan 📖 `${{ steps.tg_plan.outcome }}`
             <details><summary>Show plan details</summary>
+
             ```
             ${{ steps.tg_plan.outputs.report }}
             ```
