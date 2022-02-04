@@ -22,12 +22,12 @@ on:
           value should be "main/us-west-2/development/app".
           To minimize blast radius, this only supports one resource grouping at a time.
         required: true
-        default: 'main/us-west-2/development/app'
+        default: ''
       terragrunt_action:
         description: >
           The action for Terragrunt to run, options are "apply", "plan". Defaults to "plan", if not specified.
         required: true
-        default: 'apply'
+        default: 'plan'
 jobs:
   get-changed-states:
     name: Get modified states
@@ -89,6 +89,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_wrapper: false
 
       - name: Terragrunt Init
         id: init
@@ -111,14 +113,15 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         if: ${{ github.event_name == 'push' || github.event.inputs.terragrunt_action == 'apply' }}
-        run: terragrunt apply -auto-approve -input=false --terragrunt-source-update
+        run: |
+          terragrunt apply -auto-approve -input=false --terragrunt-source-update
+          terragrunt state pull > terraform.tfstate
 
       - name: Get generated local files
         id: generated_files
         if: steps.tg_apply.outcome == 'success'
         run: |
           set -x
-          cd $(dirname $(find .terragrunt-cache -name terragrunt.hcl))
           generated_files=$(jq -r '.resources[] | select(.type=="local_file") | .instances[].attributes.filename' terraform.tfstate)
           echo $generated_files
           echo "::set-output name=generated_files::$generated_files"
