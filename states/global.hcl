@@ -1,4 +1,6 @@
 locals {
-  name  = "iac-tempalate"
-  alias = "iac"
+  name         = "iac-template"
+  alias        = "iac"
+  repository   = "iac-template"
+  organization = "RustamGimadiev"
 }

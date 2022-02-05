@@ -15,16 +15,16 @@ generate "provider" {
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 provider "aws" {
-  region              = "${local.aws_region}"
+  region = "${local.aws_region}"
 
   default_tags {
-   tags = {
-     Environment = "${local.environment}"
-     Owner       = "gimadiev.kzn@yandex.ru"
-     Project     = "${upper(local.alias)}"
-     Terraform   = "true"
-   }
- }
+    tags = {
+      Environment = "${local.environment}"
+      Owner       = "gimadiev.kzn@yandex.ru"
+      Project     = "${upper(local.alias)}"
+      Terraform   = "true"
+    }
+  }
 }
 EOF
 }
