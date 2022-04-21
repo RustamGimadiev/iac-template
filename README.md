@@ -1,7 +1,9 @@
 # Infastructure as a Code
+
 This repository provides a required minimum setup of the IaC with default Terragrunt code layout and CI/CD pipelines.
 
 ## Required GitHub secrets
+
 | Name | Description |
 |---|---|
 |`AWS_ACCESS_KEY_ID`|AWS access key to make programmatic calls to AWS |
@@ -10,14 +12,17 @@ This repository provides a required minimum setup of the IaC with default Terrag
 |`INFRACOST_API_KEY`|Free API key for Infracost|
 
 ## Structure
+
 ### `modules`
+
 Contains in-house Terraform modules, best practice here is to use a separate repository for Terraform modules, but in some cases better to keep specific modules here. By default, CI pipeline is enabled for this folder, if pull request contains changes for files placed in `modules`, then CI will detect all updated modules and will perform some basic checks (formatting, code validation, and apply linter).
 
 ### `states`
+
 This is a root folder for Terragrunt, all nested folders are using the followed convection: each of them is placed with tree default layer separators (AWS account, region, and environment). In the future, users could extend those layers with their own.
 
 ### `generated`
-The folder with Terraform generated resources basically is designed to use with [SAK](https://github.com/provectus/swiss-army-kube) modules annd used by ArgoCD.
+The folder with Terraform generated resources basically is designed to use with [SAK](https://github.com/provectus/swiss-army-kube) modules and used by ArgoCD.
 
 Algorithm of work:
 1. Terragrunt applies Terraform code and generates required files in its `.terrafrom-cache` folder.

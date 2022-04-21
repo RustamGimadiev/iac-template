@@ -64,12 +64,107 @@ jobs:
             done
             states=$(echo {} | jq -c -s --argjson obj $items '{states: $obj}')
           fi
+          echo Filtered directoies: $states
           echo "::set-output name=matrix::$(echo "${states}")"
 
-  terragrunt:
-    name: "Terragrunt"
+  terragrunt-apply:
+    name: "Terragrunt Apply"
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
-    if: "${{ needs.get-changed-states.outputs.states != '{\"states\": []}' }}"
+    if: "${{ needs.get-changed-states.outputs.matrix != '{\"states\": []}' && ( github.event_name == 'push' || github.event.inputs.terragrunt_action == 'apply') }}"
+    needs: get-changed-states
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.IAC_PAT }}
+
+      - name: Setup Terragrunt
+        uses: autero1/action-terragrunt@v1.1.1
+        with:
+          terragrunt_version: 0.36.0
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_wrapper: false
+
+      - name: Terragrunt Apply
+        id: tg_apply
+        env:
+          SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
+        run: |
+          set -x
+          # need to define deepest common subfolder in all states
+          RESULT=""
+          states=`echo '${{ needs.get-changed-states.outputs.matrix }}' | jq -r .states[] | tr '\n' ' '`
+          eval "STATES=($states)"
+          for part in `echo $STATES | cut -d' ' -f1 | tr '/' ' '`
+            do
+              RES=""
+              for s in "${STATES[@]}"; do
+                [[ $s =~ $part ]] || RES=NOT_FOUND
+                [[ $RES == NOT_FOUND ]] && break
+                RES=$part
+              done
+              [[ $RES == NOT_FOUND ]] || RESULT="$RESULT/$RES"
+          done
+          TG_WORKING_DIR=$(echo $RESULT | sed 's/^\///')
+          echo "Terragrunt will be applyed from $TG_WORKING_DIR folder"
+          cd $TG_WORKING_DIR
+          DIRECTORIES=""
+          for dir in $(echo '${{ needs.get-changed-states.outputs.matrix }}' | jq -r .states[] | sed "s|$TG_WORKING_DIR||")
+            do
+              DIRECTORIES="$DIRECTORIES --terragrunt-include-dir=$dir"
+          done
+          terragrunt run-all apply $DIRECTORIES --terragrunt-non-interactive
+          terragrunt run-all state pull $DIRECTORIES --terragrunt-non-interactive > $GITHUB_WORKSPACE/terraform.tfstate
+
+      - name: Get generated local files
+        id: generated_files
+        if: steps.tg_apply.outcome == 'success'
+        run: |
+          generated_files=$(jq -r '.resources[] | select(.type=="local_file") | .instances[].attributes.filename' $GITHUB_WORKSPACE/terraform.tfstate | sed 's|\./||' | tr '\n' ' ')
+          echo "::set-output name=generated_files::$generated_files"
+
+      - name: Add local files back to repository
+        if: steps.generated_files.outputs.generated_files != ''
+        run: |
+          export REPO_NAME=${GITHUB_REPOSITORY/$GITHUB_REPOSITORY_OWNER\//}
+          for file in ${{ steps.generated_files.outputs.generated_files }}
+            do
+              full_path=$(find states -path "*/$file")
+              prefix=$(echo $full_path | grep -oP 'states/\K([^.]*)')
+              file_dir=$(dirname $file | sed 's/^\.//')
+              mkdir -p /home/runner/work/$REPO_NAME/$REPO_NAME/generated/$prefix$file_dir
+              cp -rf $full_path /home/runner/work/$REPO_NAME/$REPO_NAME/generated/$prefix$file_dir
+          done
+
+      - name: Commit local files back to repository
+        if: steps.generated_files.outputs.generated_files != ''
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Applying generated files back to repository
+          file_pattern: "generated/**"
+          push_options: --force
+
+  terragrunt-plan:
+    name: "Terragrunt Plan"
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    if: "${{ needs.get-changed-states.outputs.matrix != '{\"states\": []}' && ( github.event_name == 'pull_request' || github.event.inputs.terragrunt_action == 'plan' ) }}"
     needs: get-changed-states
     strategy:
       matrix: ${{ fromJson(needs.get-changed-states.outputs.matrix) }}
@@ -77,6 +172,12 @@ jobs:
       run:
         working-directory: ${{ matrix.states }}
     steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -94,63 +195,15 @@ jobs:
 
       - name: Terragrunt Init
         id: init
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terragrunt init
 
       - name: Terragrunt fmt
         id: tg_fmt
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terragrunt fmt -check
         continue-on-error: true
 
-      - name: Terragrunt Apply
-        id: tg_apply
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        if: ${{ github.event_name == 'push' || github.event.inputs.terragrunt_action == 'apply' }}
-        run: |
-          terragrunt apply -auto-approve -input=false --terragrunt-source-update
-          terragrunt state pull > terraform.tfstate
-
-      - name: Get generated local files
-        id: generated_files
-        if: steps.tg_apply.outcome == 'success'
-        run: |
-          set -x
-          generated_files=$(jq -r '.resources[] | select(.type=="local_file") | .instances[].attributes.filename' terraform.tfstate)
-          echo $generated_files
-          echo "::set-output name=generated_files::$generated_files"
-
-      - name: Add local files back to repository
-        if: steps.generated_files.outputs.generated_files != ''
-        run: |
-          cd $(dirname $(find .terragrunt-cache -name terragrunt.hcl))
-          prefix=$(pwd | grep -oP 'states/\K([^.]*)')
-          for file in ${{ steps.generated_files.outputs.generated_files }}
-            do
-              mkdir -p ${{ github.workspace }}/generated/$prefix/$(dirname $file)
-              cp -r $file ${{ github.workspace }}/generated/$prefix/$(dirname $file)/
-          done
-
-      - name: Commit local files back to repository
-        if: steps.generated_files.outputs.generated_files != ''
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: Applying generated files back to repository
-          file_pattern: "generated/**"
-          push_options: --force
-
       - name: Terragrunt Plan
         id: tg_plan
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        if: ${{ github.event_name == 'pull_request' || github.event.inputs.terragrunt_action == 'plan' }}
         run: |
           terragrunt plan -no-color -input=false --terragrunt-source-update > report.txt || status=$?
           REPORT=$(cat report.txt)
@@ -168,9 +221,6 @@ jobs:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
 
       - name: Generate Infracost comment
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         if: ${{ github.event_name == 'pull_request' }}
         id: cost_comment
         run: |

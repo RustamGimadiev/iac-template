@@ -1,8 +1,7 @@
 resource "aws_dynamodb_table" "locks" {
-  name           = "${var.alias}-terragrunt-states-lock-${var.aws_region}"
-  hash_key       = "LockID"
-  read_capacity  = 20
-  write_capacity = 20
+  name         = "${var.alias}-terragrunt-states-locks-${var.aws_region}"
+  hash_key     = "LockID"
+  billing_mode = "PAY_PER_REQUEST"
 
   attribute {
     name = "LockID"
